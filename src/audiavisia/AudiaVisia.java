@@ -27,11 +27,11 @@ public class AudiaVisia {
 	private long window;
         public String version = "0.1";
         public String windowTitle = "AudiaVisia" + version;
-        public int windowWidth = 480;
-        public int windowHeight = 640;
-        private float winWidthR = (float) 0.001f * windowWidth;
-        private float winHeightR = (float) 0.001f * windowHeight;
-        public Button[] buttons = new Button[4]; 
+        public int winWidth = 480;
+        public int winHeight = 640;
+        public float winWidthR = (float) 0.001f * winWidth;
+        public float winHeightR = (float) 0.001f * winHeight;
+        public Button[] buttons; 
         
 
 	public void run() {
@@ -64,20 +64,39 @@ public class AudiaVisia {
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); // the window will be resizable
 
 		// Create the window
-		window = glfwCreateWindow(windowWidth, windowHeight, windowTitle, NULL, NULL); //replace first NULL arg with glfwGetPrimaryMonitor() for fullscreen
+		window = glfwCreateWindow(winWidth, winHeight, windowTitle, NULL, NULL); //replace first NULL arg with glfwGetPrimaryMonitor() for fullscreen
 		if ( window == NULL )
 			throw new RuntimeException("Failed to create the GLFW window");
 
 		// Setup a key callback. It will be called every time a key is pressed, repeated or released.
 		glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
-			if ( key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE )
+			if ( key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE ) {
 				glfwSetWindowShouldClose(window, true); // We will detect this in the rendering loop
-                        if (key == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-                            
-                                //get cursor pos and use with b.checkBounds().
-                                //for (Button b : buttons) b.checkBounds();
                         }
 		});
+                
+                // # SETUP MOUSE CALLBACK
+                glfwSetMouseButtonCallback(window, (window, button, action, mods) -> {
+                        if (button == GLFW_MOUSE_BUTTON_1 && action == GLFW_PRESS) {
+                                DoubleBuffer posXBuff = BufferUtils.createDoubleBuffer(1); //set up buffer for glfw to write to
+                                DoubleBuffer posYBuff = BufferUtils.createDoubleBuffer(1);
+                                
+                                glfwGetCursorPos(window, posXBuff, posYBuff); // pass buffer for cursor pos vals
+                                
+                                float[] mouseXYPos = {(float) posXBuff.get(0), (float) posYBuff.get(0)}; //cast to usable float
+                                
+                                // DEBUG
+                                //System.out.println("mouse X = " + mouseXYPos[0] + " and Y = " + mouseXYPos[1]); 
+                                //buttons[0].printCornerCoordsDebug((float) winWidth, (float) winHeight);
+                                
+                                if (buttons != null) { // if buttons are initialised
+                                    for (Button b : buttons) { // check each button b
+                                        if (b.checkBounds(mouseXYPos) != null) b.click(); //is in bounds? then click
+                                    }
+                                }
+
+                        }
+                });
 
 		// Get the thread stack and push a new frame
 		try ( MemoryStack stack = stackPush() ) {
@@ -108,7 +127,9 @@ public class AudiaVisia {
                 
                 
                 // # INITIALISE ELEMENTS
-                for (int x = 0 ; x < 4 ; x++){ // 4 buttons
+                int numberOfButtons = 6;
+                buttons = new Button[numberOfButtons];
+                for (int x = 0 ; x < numberOfButtons ; x++){ // make buttons
                     float[][] coords = new float[4][2]; //corners of one button defined
                     for (int coord = 0 ; coord < 4 ; coord++) {  // defining each corner coord
                         for (int i = 0 ; i < 2 ; i ++) { // defining each x and y
@@ -137,7 +158,7 @@ public class AudiaVisia {
                         }
                     }
                     
-                    buttons[x] = new Button(coords, "Button " + x);
+                    buttons[x] = new Button(window, coords, "Button " + x);
                 }
 	}
 
@@ -187,7 +208,7 @@ public class AudiaVisia {
                         if (buttons != null) {
                             for (Button b : buttons) {
                                 if (b != null) {
-                                    float[][] corners = b.cornerPositions;
+                                    float[][] corners = b.cornerGLRatios;
                                     glBegin(GL_QUADS);
                                         glColor3f(1f, 1f, 1f);
                                         glVertex2f(corners[0][0], corners[0][1]);  //top left
